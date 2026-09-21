@@ -1,0 +1,21 @@
+SKILL.md
+  s_5213be4df30d2c::t_d20777903379f1 4,12-14,16-18,30-31,33-41,76-78,119-122,129,150,152-155,157,159-163,165-229,232,238-240,242-247,252-255
+README.md
+  s_5213be4df30d2c::t_39c319aab9a3d6 33-38,48-51,54-74,78-91,94-115,156,164-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7fc1620631df9befae1232a3c2353b7c46301083",
+  "prompts": {},
+  "sessions": {
+    "s_5213be4df30d2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b0ea29f-3b68-4710-8572-906c39606cd0",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Pedro Piquero <4339072+gowikel@users.noreply.github.com>"
+    }
+  }
+}
