@@ -1,0 +1,19 @@
+lenses.md
+  s_5213be4df30d2c::t_60a436ee7632cd 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "873ccb5b84db7e09ab75122a294775fec74a5375",
+  "prompts": {},
+  "sessions": {
+    "s_5213be4df30d2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b0ea29f-3b68-4710-8572-906c39606cd0",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Pedro Piquero <4339072+gowikel@users.noreply.github.com>"
+    }
+  }
+}
