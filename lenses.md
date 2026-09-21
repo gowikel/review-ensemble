@@ -8,7 +8,7 @@ matrix cells.
 
 One line per lens, printed at the intake. Kind: U universal, always
 proposed; C conditional, proposed when its trigger matches; X cross, set
-mode only.
+mode only; A advisory, always proposed, never goes to court.
 
 | lens | kind | one line |
 |---|---|---|
@@ -26,6 +26,7 @@ mode only.
 | config-and-deploy | C | keys missing in some environments, flag defaults, deploy order |
 | performance | C | new references per render, N+1, unmemoised work, unbounded lists |
 | security | C | trust boundaries crossed unchecked, secrets exposed, client-only checks |
+| simplicity | A | more code than the acceptance criteria need, with the smaller change sketched |
 | contract-drift | X | a field, route or key changed on one side of a repo boundary only |
 | rollout-order | X | what breaks between the first deploy and the last |
 | config-propagation | X | a key set in one repository and never read in another, or the reverse |
@@ -134,6 +135,27 @@ Trigger: auth, token, secret, crypto, session, permission in paths or diff.
 Hunt: trust boundary crossed without validation, secret in logs or client
 bundle, permission checked on the client only, token lifetime or scope
 widened. Only on trigger; otherwise it dilutes the other lenses.
+
+## Advisory (always proposed, never verified in court)
+
+An advisory finding has no failing test and no trace, so the court cannot
+try it. It is triaged and numbered with the rest, then goes straight to
+its own report section. The evidence bar is different but still concrete:
+name the criterion the code does not serve and sketch the smaller change.
+No sketch, no finding.
+
+### simplicity
+
+Read `ticket.md` and the diff, then the repository's existing helpers and
+utilities near the changed code. For each piece of the diff, ask whether
+a smaller change would meet the same acceptance criteria. Hunt:
+abstractions with one caller, configuration for a value that never
+changes, a new helper when an equivalent already exists in the repository,
+indirection no criterion asks for, generality beyond the ticket, and the
+reverse: code so minimal it duplicates something a few files away. Each
+finding names the criterion the extra code does not serve, or the existing
+code it duplicates, and sketches the smaller diff in a few lines. Report
+nothing that is only a matter of style.
 
 ## Cross (set mode only)
 

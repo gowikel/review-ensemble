@@ -70,8 +70,8 @@ flowchart TD
    a prosecutor, a defender and the rules below.
 7. **Filter and rank.** Confirmed and plausible claims are kept and marked.
    Rejected ones move to the discarded list.
-8. **Report.** Findings with their proof, the claims that were not verified
-   and why, a coverage matrix showing what was and was not looked at, a
+8. **Report.** Findings with their proof, advisory findings with their
+   sketched smaller change, the claims that were not verified and why, a coverage matrix showing what was and was not looked at, a
    one-line list of everything rejected with the deciding step, and per-lens
    metrics. Nothing is posted to the PR.
 
@@ -129,8 +129,11 @@ A lens is a job description for one reviewer. Universal lenses cover
 specification, control and error paths, state transitions, callers and
 siblings, tests as specification, diff hygiene, and prior review comments.
 Conditional lenses cover concurrency, data shape, UI contracts, HTTP
-boundaries, config and deploy, performance, and security. See
-[lenses.md](lenses.md).
+boundaries, config and deploy, performance, and security. One advisory
+lens, simplicity, asks whether the change is more code than the ticket
+needs and must sketch the smaller change; advisory findings are triaged
+with the rest but never go to court, since there is no failing test for
+"too much". See [lenses.md](lenses.md).
 
 The skill itself contains no repository-specific knowledge. A repository
 adds a profile at `.claude/review/profile.yaml` with its test command,

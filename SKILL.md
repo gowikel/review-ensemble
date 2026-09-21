@@ -94,7 +94,7 @@ Re-ask when a runtime is upgraded.
 | role                                                        | tier       | with tier high   |
 |-------------------------------------------------------------|------------|------------------|
 | orchestrator (the session itself)                           | `standard` | `standard`       |
-| reviewers: spec, diff-hygiene, prior-review                 | `standard` | `standard`       |
+| reviewers: spec, diff-hygiene, prior-review, simplicity     | `standard` | `standard`       |
 | reviewers: control-and-error, state-transitions, callers-and-siblings, tests-as-spec, every conditional lens | `strong` | `max` |
 | triage                                                      | `standard` | `standard`       |
 | judge                                                       | `strong`   | `max`            |
@@ -205,7 +205,7 @@ Decide:
   split into sub-scopes by directory or concern and run the pipeline once
   per sub-scope. Say so in the report.
 - **Lenses.** As confirmed in the intake. The default the intake proposes
-  is all seven universal lenses plus every conditional lens whose trigger
+  is all seven universal lenses, the advisory lens, plus every conditional lens whose trigger
   matches (profile first, fallback table if no profile); over ten, it
   proposes dropping the weakest trigger matches and says which.
 
@@ -273,6 +273,9 @@ Print a numbered table sorted by risk, then support:
 1  high    3        service   src/state/sessionSagas.js:120-138  ...
 2  high    1        facade    ...
 ```
+
+Advisory findings (kind A in the catalogue) appear in the table marked
+`advisory`; they are never sent to court, whatever the operator selects.
 
 Stop and ask the operator which numbers proceed to court. Accept ranges
 (`1-8`), lists (`1,3,7`), `all`, or `none`. Claims not chosen go to the
@@ -351,15 +354,17 @@ scratchpad and print it; the set has no single home repository. Sections in this
 
 1. **Findings.** Each with repo, file:line, claim, scenario, verdict, the
    artifacts, support.
-2. **Not verified.** The triage rows the operator did not choose.
-3. **Coverage.** The matrix: cells covered, cells with no owner output,
+2. **Advisory.** Findings from advisory lenses, with the criterion or
+   duplicate named and the sketched smaller change. Not tried in court.
+3. **Not verified.** The triage rows the operator did not choose.
+4. **Coverage.** The matrix: cells covered, cells with no owner output,
    reviewers that failed or timed out, lenses dropped at the gate.
-4. **Discarded.** One line per rejected cluster with the deciding step, so
+5. **Discarded.** One line per rejected cluster with the deciding step, so
    a human can spot-check the court.
-5. **Metrics.** Per lens: findings, unique after dedup, sent to court,
+6. **Metrics.** Per lens: findings, unique after dedup, sent to court,
    confirmed, rejected, plausible, tokens, wall time. Per court: agents
    spawned. Totals.
-6. **Profile suggestion.** Only when no profile existed.
+7. **Profile suggestion.** Only when no profile existed.
 
 ## Rules
 
