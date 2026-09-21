@@ -23,13 +23,17 @@ agents that do.
 
 ```mermaid
 flowchart TD
-    A[Gate<br/>read PR, split if large,<br/>pick lenses] --> B[Context pack<br/>diff, files, ticket, related PRs,<br/>comments, tests, hunk x lens matrix]
+    I[Intake<br/>ask for PRs and extra context,<br/>print the plan] --> K{Operator says go}
+    K --> A[Gate<br/>check scope, split if large]
+    A --> B[Context pack, one per repository<br/>diff, files, ticket, related PRs,<br/>comments, tests, hunk x lens matrix]
     B --> C1[Reviewer: lens 1]
     B --> C2[Reviewer: lens 2]
     B --> Cn[Reviewer: lens n]
-    C1 --> D[Dedup<br/>cluster same file, lines, claim<br/>support = reviewers per cluster]
+    B -.->|set mode| X[Cross reviewers<br/>contract-drift, rollout-order,<br/>config-propagation over every diff]
+    C1 --> D[Dedup<br/>cluster same repo, file, lines, claim<br/>support = reviewers per cluster]
     C2 --> D
     Cn --> D
+    X -.-> D
     D --> T[Triage<br/>risk if true, numbered table]
     T --> O{Operator picks<br/>which claims go to court}
     O --> E[Court per chosen claim<br/>one at a time]
@@ -38,9 +42,14 @@ flowchart TD
     F --> G[Report<br/>findings with proof, not verified,<br/>coverage, discarded, metrics]
 ```
 
-1. **Gate.** Read the PR. Split it if it is large or mixes concerns. Choose
-   lenses: seven that always run, plus conditional ones triggered by what
-   the diff touches.
+0. **Intake.** Ask for the PRs and for anything else worth knowing, then
+   print the plan: PRs, mode, every lens with a one-line description and
+   which are enabled and why, N, concurrency, tier, resolved models. Nothing
+   runs until the operator says go.
+1. **Gate.** Check scope. Split the PR if it is large or mixes concerns.
+   Lenses are the ones confirmed at intake: seven that always run, plus
+   conditional ones triggered by what the diff touches, plus the three
+   cross lenses in set mode.
 2. **Context pack.** Build one read-only folder every reviewer sees: the
    diff, the changed files in full, the ticket's acceptance criteria, related
    PRs and their comments, existing review threads, the tests that touch
@@ -75,8 +84,8 @@ what they produce, and rules; it never argues a side itself.
 
 ```mermaid
 flowchart TD
-    S[Judge receives claim] --> P[Prosecutor<br/>failing test, or a trace]
-    P --> V{Judge validates<br/>fails on PR, passes on base,<br/>checklist}
+    S[Judge receives claim] --> P[Prosecutor<br/>returns a test body, or a trace]
+    P --> V{Judge writes and runs the test<br/>fails on PR, passes on base,<br/>then the checklist}
     V -->|invalid, first time| P2[Prosecutor fixes<br/>or withdraws, once]
     P2 --> V
     V -->|valid failing test| C1[confirmed]
