@@ -10,26 +10,31 @@ One line per lens, printed at the intake. Kind: U universal, always
 proposed; C conditional, proposed when its trigger matches; X cross, set
 mode only; A advisory, always proposed, never goes to court.
 
-| lens | kind | one line |
-|---|---|---|
-| spec | U | does the change meet every acceptance criterion in the ticket, and is each one tested |
-| control-and-error | U | branches, catches, retries and defaults that swallow or hide failure |
-| state-transitions | U | what breaks when events arrive twice, out of order, too early or never |
-| callers-and-siblings | U | call sites broken by the change, and same bug left in sibling paths |
-| tests-as-spec | U | assertions that would still pass if the change were reverted |
-| diff-hygiene | U | debug leftovers, dead code, stale names, docs not updated |
-| prior-review | U | past review comments not addressed or regressed |
-| concurrency | C | races, cancellation, cleanup, stale closures in async code |
-| data-shape | C | optional fields, case boundaries, fixtures unlike production data |
-| ui-contract | C | render matrix, roles and labels, keyboard path, design fidelity |
-| http-boundary | C | routes without auth, unchecked input, CSRF, leaking responses |
-| config-and-deploy | C | keys missing in some environments, flag defaults, deploy order |
-| performance | C | new references per render, N+1, unmemoised work, unbounded lists |
-| security | C | trust boundaries crossed unchecked, secrets exposed, client-only checks |
-| simplicity | A | more code than the acceptance criteria need, with the smaller change sketched |
-| contract-drift | X | a field, route or key changed on one side of a repo boundary only |
-| rollout-order | X | what breaks between the first deploy and the last |
-| config-propagation | X | a key set in one repository and never read in another, or the reverse |
+Every lens also declares its **slice**: the parts of the context pack its
+reviewer receives. `diff`, `matrix` and the files of its cells always;
+the rest only when listed here. Cross lenses receive every diff and
+`set.md`.
+
+| lens | kind | slice | one line |
+|---|---|---|---|
+| spec | U | ticket, tests | does the change meet every acceptance criterion in the ticket, and is each one tested |
+| control-and-error | U | — | branches, catches, retries and defaults that swallow or hide failure |
+| state-transitions | U | — | what breaks when events arrive twice, out of order, too early or never |
+| callers-and-siblings | U | — | call sites broken by the change, and same bug left in sibling paths |
+| tests-as-spec | U | tests | assertions that would still pass if the change were reverted |
+| diff-hygiene | U | — | debug leftovers, dead code, stale names, docs not updated |
+| prior-review | U | comments, related | past review comments not addressed or regressed |
+| concurrency | C | — | races, cancellation, cleanup, stale closures in async code |
+| data-shape | C | tests | optional fields, case boundaries, fixtures unlike production data |
+| ui-contract | C | ticket, tests | render matrix, roles and labels, keyboard path, design fidelity |
+| http-boundary | C | — | routes without auth, unchecked input, CSRF, leaking responses |
+| config-and-deploy | C | — | keys missing in some environments, flag defaults, deploy order |
+| performance | C | — | new references per render, N+1, unmemoised work, unbounded lists |
+| security | C | — | trust boundaries crossed unchecked, secrets exposed, client-only checks |
+| simplicity | A | ticket | more code than the acceptance criteria need, with the smaller change sketched |
+| contract-drift | X | set, all diffs | a field, route or key changed on one side of a repo boundary only |
+| rollout-order | X | set, all diffs | what breaks between the first deploy and the last |
+| config-propagation | X | set, all diffs | a key set in one repository and never read in another, or the reverse |
 
 ## Universal (always on)
 

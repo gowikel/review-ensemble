@@ -42,7 +42,8 @@ the operator confirms the plan.
    at dedup. It is never passed to reviewers as advice; reviewers may
    still find it, and the filter removes it.
 3. **Resolve defaults.** Read each repository's profile, match lens
-   triggers against the diffs, set `N=1`, `parallel=1`, `tier` off.
+   triggers against the diffs, set N=1 for every lens kind, `parallel=1`,
+   `tier` off.
 4. **Print the plan and ask for confirmation.** Exactly this shape:
 
    ```
@@ -59,7 +60,9 @@ the operator confirms the plan.
    Enabled for this review: <name>, <name>, ...
    (why: universal | triggered by <path or pattern> | profile | requested)
 
-   Reviewers per lens (N): 1
+   Reviewers per lens (N)
+   - shallow (spec, diff-hygiene, prior-review, simplicity): 1 at standard
+   - deep (all other universal, conditional and cross lenses): 1 at strong
    Concurrency (parallel): 1
    Tier: standard/strong (say "tier high" for the strongest models)
 
@@ -219,11 +222,15 @@ Decide:
 
 ### 2. Context pack
 
-Build once, read-only, in the scratchpad as `context/`. Every reviewer reads
-the same pack and nothing else is shared.
+Build once, read-only, in the scratchpad as `context/`. Reviewers read
+slices of it, never the whole pack: each lens declares in `lenses.md`
+which parts it reads, and the orchestrator lists only those paths in the
+reviewer's prompt. A reviewer given the whole pack costs several hundred
+thousand tokens; sliced, a fraction of that. Nothing else is shared.
 
 - `diff.patch`: full PR diff.
-- `files/`: full current content of every changed file.
+- `files/`: full current content of every changed file. A reviewer reads
+  only the files of its matrix cells, plus what it follows from there.
 - `ticket.md`: ticket summary and acceptance criteria as a numbered list,
   from the profile's `context` sources. Absent: say "no ticket" in the pack.
 - `related.md`: linked and related PRs (same ticket prefix, same files in
@@ -237,9 +244,10 @@ the same pack and nothing else is shared.
 ### 3. Fan-out
 
 One fresh agent per lens (times N), spawned according to the confirmed concurrency.
-Each prompt contains: the pack path, the lens text from `lenses.md` or the
-profile, the matrix cells it owns, and the finding schema below. Reviewers
-read files as they need but must not run tests or modify anything.
+Each prompt contains: the paths of the pack slices its lens reads, the
+lens text from `lenses.md` or the profile, the matrix cells it owns, and
+the finding schema below. Reviewers may follow references out of their
+slice into the repository, but must not run tests or modify anything.
 
 Finding schema, one JSON object per finding, in a `findings` array, plus a
 `covered` array of cell ids with `found: true|false` for each cell it owns:
@@ -264,7 +272,9 @@ distinguishable from not looked.
 
 - Key on repo, file, overlapping line range and claim similarity.
 - Cluster near-duplicates. Merge scenarios, keep the strongest evidence.
-- `support` = number of distinct reviewers in the cluster.
+- `support` = distinct lenses in the cluster, shown as `lenses/reviewers`
+  (`2/5`). Three copies of one lens agreeing is one lens; ranking uses
+  the lens count. The reviewer count is shown so inflation is visible.
 - Record every cluster to `clusters.json` with its member reviewer ids.
 - Apply the plan's exclusions: every cluster that matches one is moved
   out of the run and listed in the report under "Excluded by operator"
@@ -273,17 +283,21 @@ distinguishable from not looked.
 
 ### 5. Triage, then stop
 
-One fresh mid-tier agent reads every cluster and assigns `risk_if_true`:
-high, medium or low, with one line of reasoning. It does not verify and
-it does not judge whether the claim is true; it rates the damage if it
-were.
+Three fresh mid-tier agents, each unaware of the others, read every
+cluster and assign `risk_if_true`: high, medium or low, with one line of
+reasoning. The cluster's risk is the median of the three. A triage agent
+does not verify and does not judge whether the claim is true; it rates
+the damage if it were. Its reasoning line must describe consequence
+only. Words that rate probability (unlikely, edge case, narrow, rare,
+probably) are not allowed in it; a line containing one is discarded and
+that agent's rating for the row is re-asked once.
 
-Print a numbered table sorted by risk, then support:
+Print a numbered table sorted by risk, then lens support:
 
 ```
 #  risk    support  repo      file:lines                        claim
-1  high    3        service   src/state/sessionSagas.js:120-138  ...
-2  high    1        facade    ...
+1  high    3/4      service   src/state/sessionSagas.js:120-138  ...
+2  high    1/1      facade    ...
 ```
 
 Advisory findings (kind A in the catalogue) appear in the table marked

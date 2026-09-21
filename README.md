@@ -179,7 +179,9 @@ Available lenses
 Enabled for this review: spec, control-and-error, ..., contract-drift, rollout-order
 (why: universal | triggered by src/sagas | profile | requested)
 
-Reviewers per lens (N): 1
+Reviewers per lens (N)
+- shallow (spec, diff-hygiene, prior-review, simplicity): 1 at standard
+- deep (everything else): 1 at strong
 Concurrency (parallel): 1
 Tier: standard/strong
 
@@ -204,15 +206,21 @@ context. The plan is reprinted after each change. Nothing runs before
 |---|---|---|
 | PRs | asked | One number in the current repo, or URLs. Two or more URLs: set mode across repositories, merged or not. |
 | Lenses | universal plus triggered | Add or remove by name at the plan. |
-| N | `1` | Reviewers per lens. Each is a fresh, independent agent. |
+| N | `1` per kind | Reviewers per lens, set separately for shallow and deep lenses. Each is a fresh, independent agent. |
 | Concurrency | `1` | Agents running at once. Sequential by default so token usage per minute stays flat. |
 | Tier | standard/strong | "tier high" moves the judge and deep reviewers to the strongest model. Costly. |
 
-`N=1` gives one sample per lens; agreement is then measured across lenses
-only. Raise it (`N=2`, `N=3`) on high-risk PRs: the same lens sampled
-several times makes support counts meaningful within a lens too, and a
-claim found by three of three concurrency reviewers is a stronger signal
-than one found by one. Cost grows linearly with `N`.
+`N=1` gives one sample per lens; agreement is then measured across lenses,
+and support is shown as `lenses/reviewers`. Raising N on the shallow
+lenses ("shallow 3") is cheap and catches what one checklist pass
+skipped; raising it on the deep lenses is where the cost is. Three
+copies of one lens agreeing still count as one lens in the ranking, so a
+wide run cannot inflate support by itself. Cost grows linearly with N.
+
+Triage runs three independent agents and takes the median risk, so one
+agent's mood does not reorder the table between runs. Reviewers receive
+only the slice of the context pack their lens needs, which is what keeps
+a run affordable.
 
 ### Models
 
