@@ -1,0 +1,21 @@
+SKILL.md
+  s_5213be4df30d2c::t_004b657e4832b7 1-215
+lenses.md
+  s_5213be4df30d2c::t_4330d2d6f820e6 1-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8f9e1937b4187320f98485f93c56a5e199e8bbb2",
+  "prompts": {},
+  "sessions": {
+    "s_5213be4df30d2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b0ea29f-3b68-4710-8572-906c39606cd0",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Pedro Piquero <4339072+gowikel@users.noreply.github.com>"
+    }
+  }
+}
