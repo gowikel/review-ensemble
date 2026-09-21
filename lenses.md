@@ -108,3 +108,35 @@ Trigger: auth, token, secret, crypto, session, permission in paths or diff.
 Hunt: trust boundary crossed without validation, secret in logs or client
 bundle, permission checked on the client only, token lifetime or scope
 widened. Only on trigger; otherwise it dilutes the other lenses.
+
+## Cross (set mode only)
+
+Each runs once over every diff in the set plus `set.md`. They never run on
+a single PR.
+
+### contract-drift
+
+Walk the contract map. For every route, payload field, event, config key
+or schema element a PR changes on the producing side, find every consumer
+in the other PRs and in the unchanged code of their repositories. Hunt:
+renamed on one side only, type or nullability changed, field removed
+while still read, field added and never read, default that differs
+between sides. Cite both sides by repo and file:line.
+
+### rollout-order
+
+For every pair of repositories that talk, derive which must deploy first
+from the contract map, then produce the scenario for the window between:
+old consumer on new producer and new consumer on old producer. Hunt:
+required field the old side does not send, route the old side does not
+serve, version pin that the other repository has not yet published. State
+the safe order explicitly and every pair where no order is safe.
+
+### config-propagation
+
+Every environment variable, config key, secret name, image tag or version
+added, renamed or removed anywhere in the set: list where it is set and
+where it is read across all repositories. Hunt: set and never read, read
+and never set, set under one name and read under another, present in one
+environment template and missing in the others. Follow the chain end to
+end; a break anywhere is a finding.

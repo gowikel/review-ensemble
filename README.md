@@ -144,6 +144,7 @@ skill name.
 /review-ensemble
 /review-ensemble 1234
 /review-ensemble 1234 lenses=concurrency,tests-as-spec N=2
+/review-ensemble https://github.com/org/api/pull/12 https://github.com/org/web/pull/40
 ```
 
 ### Parameters
@@ -151,6 +152,7 @@ skill name.
 | Parameter | Default | Meaning |
 |---|---|---|
 | PR number | current branch's PR | Which pull request to review. |
+| PR URLs | none | Two or more: set mode, across repositories, merged or not. |
 | `lenses=` | automatic | Comma-separated lens names. Replaces the gate's selection entirely. |
 | `N=` | `1` | Reviewers per lens. Each is a fresh, independent agent. |
 | `parallel=` | `1` | Agents running at once. Sequential by default so token usage per minute stays flat. |
@@ -178,8 +180,25 @@ a model per subagent runs every role at the session's model and says so in
 the metrics. A repository profile can override a tier with a vendor name.
 
 Expect ten to twenty reviewer agents on a typical PR plus two to five per
-claim sent to court. This is the heavy pass, not
-the everyday one.
+claim sent to court. This is the heavy pass, not the everyday one.
+
+### Sets of pull requests
+
+One change often lands as several PRs across repositories: an image, a
+service, a facade, a web app. Reviewed one at a time, each looks fine; the
+bugs sit at the seams. Give the skill every PR URL and it reviews each
+repository as usual, then runs three lenses over the whole set: contract
+drift (a field changed on one side and not the other), rollout order (what
+breaks between the first deploy and the last) and config propagation (a
+key set in one repository and never read in another). Claims carry the
+repository they belong to, and the court gets a worktree per repository.
+
+When the individual PRs were already reviewed, pass only the cross lenses:
+
+```
+/review-ensemble <url> <url> <url> lenses=contract-drift,rollout-order,config-propagation
+```
+
 
 ## License
 

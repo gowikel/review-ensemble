@@ -27,6 +27,8 @@ work. Break any of these and the sampling means nothing.
 ## Inputs
 
 - **PR number** (optional): detect from the current branch if absent.
+- **PR URLs** (optional, two or more): set mode. The PRs may live in
+  different repositories and may already be merged. See "Set mode".
 - **lenses=** (optional): explicit list; explicit always wins over the profile.
 - **N=** (optional): reviewers per lens, default 1. Raise for high-risk PRs;
   support count then becomes meaningful within a lens too.
@@ -79,6 +81,37 @@ knows which runtime its team uses.
   `parallel=` above 1 has no effect. Subagents are read-only, which the
   court already accommodates: the prosecutor never writes files.
 
+## Set mode
+
+Several PRs that implement one change across repositories. Each PR is
+reviewed on its own exactly as below, and the set as a whole gets three
+cross lenses that no single-repo review can run. Differences from a single
+PR:
+
+- **Gate.** Skip the mergeable check; merged PRs are fine. Fetch every
+  repository into its own scratch worktree at the PR head, base branch
+  alongside. Each repository's own profile applies to its local lenses.
+- **Pack.** One `context/<repo>/` per PR as in step 2, plus one
+  `context/set.md`: the ticket, every PR with its role in one line, and
+  the **contract map**, extracted mechanically from every diff: HTTP
+  routes with request and response fields, message and event shapes,
+  environment and config keys read or written, package and image
+  versions pinned, database fields. For each entry: which PR produces
+  it, which PR consumes it.
+- **Fan-out.** Local lenses run per repository. The cross lenses in
+  `lenses.md` run once each over every diff plus the contract map.
+- **Dedup, triage, report.** Every claim carries a `repo` field; the
+  triage table and the report show it. A cross claim lists every repo
+  it touches.
+- **Court.** The judge gets one worktree per repository in the set. A
+  cross claim usually closes on a trace; the prosecutor tries a
+  consumer-side test first, feeding the consumer the producer's new
+  shape, and falls back to a trace across the repositories.
+- **Cost.** Roughly one single-PR run per repository plus three cross
+  reviewers. When the PRs were already reviewed individually, invoke
+  with `lenses=contract-drift,rollout-order,config-propagation` to run
+  only what nobody ran.
+
 ## Repo profile
 
 Generic core plus a per-repo profile. The core contains no path globs.
@@ -127,6 +160,8 @@ Respect `parallel=` everywhere agents are spawned.
 
 Decide:
 
+- **Set.** Two or more PR URLs: set mode, see above. Everything below
+  then runs per repository, with the additions that section lists.
 - **Scope.** Over ~800 changed lines or more than one unrelated concern:
   split into sub-scopes by directory or concern and run the pipeline once
   per sub-scope. Say so in the report.
@@ -183,7 +218,7 @@ distinguishable from not looked.
 
 ### 4. Normalise and dedup
 
-- Key on file plus overlapping line range plus claim similarity.
+- Key on repo, file, overlapping line range and claim similarity.
 - Cluster near-duplicates. Merge scenarios, keep the strongest evidence.
 - `support` = number of distinct reviewers in the cluster.
 - Record every cluster to `clusters.json` with its member reviewer ids.
@@ -198,9 +233,9 @@ were.
 Print a numbered table sorted by risk, then support:
 
 ```
-#  risk    support  file:lines                        claim
-1  high    3        src/state/sessionSagas.js:120-138  ...
-2  high    1        ...
+#  risk    support  repo      file:lines                        claim
+1  high    3        service   src/state/sessionSagas.js:120-138  ...
+2  high    1        facade    ...
 ```
 
 Stop and ask the operator which numbers proceed to court. Accept ranges
@@ -213,7 +248,7 @@ visible later. Do not spend a single verification agent before the answer.
 For each chosen cluster, in triage order, the orchestrator creates one
 **judge** (fresh agent, strongest model) and hands it the claim, the
 scenario, the relevant files, `tests.md`, the oracle command and a worktree
-on the PR branch. Nothing else: no support count, no confidence, no
+on the PR branch, one per repository in set mode. Nothing else: no support count, no confidence, no
 reviewer evidence, no other cluster. The judge runs the court and returns a
 verdict with artifacts. Courts run one at a time unless `parallel=` says
 otherwise; inside a court, everything is sequential.
@@ -275,9 +310,10 @@ named.
 ### 8. Report
 
 Write `report.md` to the profile's `runs` directory, named
-`<pr>-<yyyy-mm-dd>.md`, and print it. Sections in this order:
+`<pr>-<yyyy-mm-dd>.md`, and print it. In set mode, write it to the
+scratchpad and print it; the set has no single home repository. Sections in this order:
 
-1. **Findings.** Each with file:line, claim, scenario, verdict, the
+1. **Findings.** Each with repo, file:line, claim, scenario, verdict, the
    artifacts, support.
 2. **Not verified.** The triage rows the operator did not choose.
 3. **Coverage.** The matrix: cells covered, cells with no owner output,
