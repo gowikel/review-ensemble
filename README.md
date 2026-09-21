@@ -171,10 +171,11 @@ tests and weighs evidence: the deep lenses, prosecutor, defender and judge.
 `max` is the strongest model available and is used only with `tier=high`,
 for the judge and the deep lenses.
 
-One table in `SKILL.md` maps each tier to a model name per runtime. A
-runtime that cannot pick a model per subagent runs every role at the
-session's model and says so in the metrics. A repository profile can
-override a tier with a vendor name.
+One table in `SKILL.md` maps each tier to a model name per runtime,
+currently Claude Code, Codex and Mistral Vibe, with notes on how each
+spawns fresh subagents and limits concurrency. A runtime that cannot pick
+a model per subagent runs every role at the session's model and says so in
+the metrics. A repository profile can override a tier with a vendor name.
 
 Expect ten to twenty reviewer agents on a typical PR plus two to five per
 claim sent to court. This is the heavy pass, not

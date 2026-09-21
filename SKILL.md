@@ -42,11 +42,15 @@ runtime; resolve through the column of the runtime you are running in. If
 your runtime cannot set a model per subagent, run the role at the session's
 model and say so in the report's metrics.
 
-| tier       | meaning                                          | claude code | codex | vibe |
-|------------|--------------------------------------------------|-------------|-------|------|
-| `standard` | reads and tallies, light judgement               | sonnet      | TBD   | TBD  |
-| `strong`   | traces code, writes and runs tests, weighs evidence | opus     | TBD   | TBD  |
-| `max`      | strongest available; only with `tier=high`       | fable       | TBD   | TBD  |
+| tier       | meaning                                             | claude code | codex           | vibe           |
+|------------|-----------------------------------------------------|-------------|-----------------|----------------|
+| `standard` | reads and tallies, light judgement                  | sonnet      | gpt-5.6-luna    | mistral-small  |
+| `strong`   | traces code, writes and runs tests, weighs evidence | opus        | gpt-5.6-terra   | mistral-medium |
+| `max`      | strongest available; only with `tier=high`          | fable       | gpt-6-astra     | mistral-large  |
+
+Column sources: Claude Code from the Agent tool's `model` values; Codex
+from Codex CLI 0.155.1's own answer; Vibe from Mistral Vibe's own answer.
+Re-ask when a runtime is upgraded.
 
 | role                                                        | tier       | with `tier=high` |
 |-------------------------------------------------------------|------------|------------------|
@@ -61,6 +65,19 @@ model and say so in the report's metrics.
 The `max` tier is never used unless the invocation says `tier=high`. A
 profile may override any tier with a vendor name under `models:`; the repo
 knows which runtime its team uses.
+
+### Runtime notes
+
+- **Claude Code.** Agent tool, `model` per call, fresh context by using a
+  non-fork agent type. Concurrency is how many Agent calls go in one
+  message; `parallel=1` means one per message.
+- **Codex.** `spawn_agent({ model, fork_context: false, message })`.
+  Concurrency via `[agents] max_concurrent_threads_per_session` in
+  `config.toml`; set it to `parallel=`. Worktrees via `--worktree`.
+- **Vibe.** `task` tool, no model parameter: every role runs at the session
+  model, and the metrics must say so. `task` is synchronous, so
+  `parallel=` above 1 has no effect. Subagents are read-only, which the
+  court already accommodates: the prosecutor never writes files.
 
 ## Repo profile
 
@@ -202,9 +219,11 @@ verdict with artifacts. Courts run one at a time unless `parallel=` says
 otherwise; inside a court, everything is sequential.
 
 **Prosecution.** The judge summons a fresh prosecutor with the same inputs.
-The prosecutor must write a test that fails because of the claimed defect
-and run it with the oracle command, or, if no test can express it, a
-line-by-line trace of inputs and events ending in the wrong outcome.
+The prosecutor must return the body and path of a test that fails because
+of the claimed defect, or, if no test can express it, a line-by-line trace
+of inputs and events ending in the wrong outcome. The prosecutor returns
+text; it never writes to the worktree. The judge writes the test file and
+runs it with the oracle command.
 
 **Test validation.** A red test is not evidence until the judge says so.
 Mechanical first: the judge runs the test on the PR branch (must fail) and
