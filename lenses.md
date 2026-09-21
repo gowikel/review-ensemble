@@ -12,7 +12,7 @@ mode only; A advisory, always proposed, never goes to court.
 
 | lens | kind | one line |
 |---|---|---|
-| spec | U | each acceptance criterion: where implemented, where tested |
+| spec | U | does the change meet every acceptance criterion in the ticket, and is each one tested |
 | control-and-error | U | branches, catches, retries and defaults that swallow or hide failure |
 | state-transitions | U | what breaks when events arrive twice, out of order, too early or never |
 | callers-and-siblings | U | call sites broken by the change, and same bug left in sibling paths |
