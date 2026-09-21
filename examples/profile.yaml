@@ -1,0 +1,29 @@
+# Copy to .claude/review/profile.yaml in the reviewed repository and adapt.
+version: 1
+oracle:
+  test: "npm test"
+  lint: "npm run lint"
+runs: .claude/review/runs
+context:
+  - kind: jira
+    key_from_branch: '^([A-Z]+-\d+)'
+  - kind: file
+    path: CLAUDE.md
+lenses:
+  - name: concurrency
+    when:
+      paths: ["src/**/*Sagas.js", "src/**/sagas.js"]
+      diff: ["takeLatest", "takeEvery", "yield call("]
+    prompt: |
+      Redux-saga lens. For every watcher changed, state whether it is
+      takeEvery, takeLatest or takeLeading and produce the scenario where
+      the wrong choice drops or duplicates work. Hunt: actions dispatched
+      before the saga is registered, cleanup not run on teardown, empty
+      catch blocks, stale closures over store state.
+  - name: http-boundary
+    when:
+      paths: ["server/routes/**", "server/middleware/**"]
+    prompt: |
+      Route lens. Every new or changed route: auth middleware present,
+      CSRF on state-changing methods, input validated before use, error
+      mapped to a status code, nothing internal leaking into the response.
