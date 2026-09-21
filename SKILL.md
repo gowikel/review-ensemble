@@ -24,18 +24,55 @@ work. Break any of these and the sampling means nothing.
 - PR touches concurrency, state machines, auth, or money, and the user asks
   for a review
 
-## Inputs
+## Intake
 
-- **PR number** (optional): detect from the current branch if absent.
-- **PR URLs** (optional, two or more): set mode. The PRs may live in
-  different repositories and may already be merged. See "Set mode".
-- **lenses=** (optional): explicit list; explicit always wins over the profile.
-- **N=** (optional): reviewers per lens, default 1. Raise for high-risk PRs;
-  support count then becomes meaningful within a lens too.
-- **parallel=** (optional): agents run at once, default 1. Sequential keeps
-  token usage per unit of time flat; raise it only with budget to burn.
-- **tier=high** (optional): judge and deep reviewers move to the `max`
-  tier. Off by default; the strongest models are costly.
+The skill starts as a conversation, not a command line. Flags on the
+invocation are accepted and prefill the answers, but nothing runs until
+the operator confirms the plan.
+
+1. **Ask for the PRs.** "Which PRs should I review?" Accept a number in
+   the current repo, or one or more URLs. Two or more URLs is set mode.
+2. **Ask for anything extra.** Ticket links, related PRs, design docs,
+   known constraints, things already reviewed. Keep asking "anything
+   else?" until the operator says it is complete. Everything given goes
+   into the context pack.
+3. **Resolve defaults.** Read each repository's profile, match lens
+   triggers against the diffs, set `N=1`, `parallel=1`, `tier` off.
+4. **Print the plan and ask for confirmation.** Exactly this shape:
+
+   ```
+   PRs to review
+   - <url>  <title>  <merged | open>
+   - ...
+
+   Mode: single | set
+
+   Available lenses
+   - <name>: <one line from the catalogue in lenses.md>
+   - ...
+
+   Enabled for this review: <name>, <name>, ...
+   (why: universal | triggered by <path or pattern> | profile | requested)
+
+   Reviewers per lens (N): 1
+   Concurrency (parallel): 1
+   Tier: standard/strong (say "tier high" for the strongest models)
+
+   Models
+   - orchestrator, shallow reviewers, triage: <resolved model>
+   - deep reviewers, judge, prosecutor, defender: <resolved model>
+
+   Extra context
+   - <what the operator gave>
+
+   Say "go", or tell me what to change.
+   ```
+
+   The operator may add or remove lenses by name, change N, parallel or
+   tier, add or drop PRs, or add context. Reprint the plan after every
+   change and ask again. Run only on an explicit go.
+
+The plan as confirmed is written to the report's metrics section.
 
 ## Models
 
@@ -48,13 +85,13 @@ model and say so in the report's metrics.
 |------------|-----------------------------------------------------|-------------|-----------------|----------------|
 | `standard` | reads and tallies, light judgement                  | sonnet      | gpt-5.6-luna    | mistral-small  |
 | `strong`   | traces code, writes and runs tests, weighs evidence | opus        | gpt-5.6-terra   | mistral-medium |
-| `max`      | strongest available; only with `tier=high`          | fable       | gpt-6-astra     | mistral-large  |
+| `max`      | strongest available; only with tier high            | fable       | gpt-6-astra     | mistral-large  |
 
 Column sources: Claude Code from the Agent tool's `model` values; Codex
 from Codex CLI 0.155.1's own answer; Vibe from Mistral Vibe's own answer.
 Re-ask when a runtime is upgraded.
 
-| role                                                        | tier       | with `tier=high` |
+| role                                                        | tier       | with tier high   |
 |-------------------------------------------------------------|------------|------------------|
 | orchestrator (the session itself)                           | `standard` | `standard`       |
 | reviewers: spec, diff-hygiene, prior-review                 | `standard` | `standard`       |
@@ -64,7 +101,7 @@ Re-ask when a runtime is upgraded.
 | prosecutor                                                  | `strong`   | `strong`         |
 | defender                                                    | `strong`   | `strong`         |
 
-The `max` tier is never used unless the invocation says `tier=high`. A
+The `max` tier is never used unless the operator asks for tier high. A
 profile may override any tier with a vendor name under `models:`; the repo
 knows which runtime its team uses.
 
@@ -75,10 +112,10 @@ knows which runtime its team uses.
   message; `parallel=1` means one per message.
 - **Codex.** `spawn_agent({ model, fork_context: false, message })`.
   Concurrency via `[agents] max_concurrent_threads_per_session` in
-  `config.toml`; set it to `parallel=`. Worktrees via `--worktree`.
+  `config.toml`; set it to the confirmed concurrency. Worktrees via `--worktree`.
 - **Vibe.** `task` tool, no model parameter: every role runs at the session
   model, and the metrics must say so. `task` is synchronous, so
-  `parallel=` above 1 has no effect. Subagents are read-only, which the
+  concurrency above 1 has no effect. Subagents are read-only, which the
   court already accommodates: the prosecutor never writes files.
 
 ## Set mode
@@ -108,9 +145,8 @@ PR:
   consumer-side test first, feeding the consumer the producer's new
   shape, and falls back to a trace across the repositories.
 - **Cost.** Roughly one single-PR run per repository plus three cross
-  reviewers. When the PRs were already reviewed individually, invoke
-  with `lenses=contract-drift,rollout-order,config-propagation` to run
-  only what nobody ran.
+  reviewers. When the PRs were already reviewed individually, keep only
+  the cross lenses at the intake: that runs what nobody ran.
 
 ## Repo profile
 
@@ -145,13 +181,16 @@ write it into the repo without asking.
 
 ## Instructions
 
-Open with one short line saying you are using the review-ensemble skill.
-Work in the scratchpad; write into the repo only what the profile names.
+Open with one short line saying you are using the review-ensemble skill,
+then run the intake. Work in the scratchpad; write into the repo only what the profile names.
 Spawn agents with the Agent tool as fresh general-purpose agents, never
 forks: a fork inherits this conversation and correlates the samples.
-Respect `parallel=` everywhere agents are spawned.
+Respect the confirmed concurrency everywhere agents are spawned.
 
 ### 1. Gate
+
+Runs after the intake is confirmed; the plan fixes lenses, N, parallel and
+tier, so the gate only checks scope.
 
 ```bash
 /opt/homebrew/bin/gh pr view --json number,title,baseRefName,headRefName,mergeable,additions,deletions,files
@@ -165,13 +204,10 @@ Decide:
 - **Scope.** Over ~800 changed lines or more than one unrelated concern:
   split into sub-scopes by directory or concern and run the pipeline once
   per sub-scope. Say so in the report.
-- **Lenses.** All seven universal lenses from `lenses.md`, plus every
-  conditional lens whose trigger matches (profile first, fallback table if
-  no profile). The gate may add at most one extra lens, with a one-line
-  reason that goes into the report. Explicit user lenses replace all of
-  this.
-- **Cap.** More than ten lenses: drop conditional ones with the weakest
-  trigger match, report which were dropped.
+- **Lenses.** As confirmed in the intake. The default the intake proposes
+  is all seven universal lenses plus every conditional lens whose trigger
+  matches (profile first, fallback table if no profile); over ten, it
+  proposes dropping the weakest trigger matches and says which.
 
 ### 2. Context pack
 
@@ -192,7 +228,7 @@ the same pack and nothing else is shared.
 
 ### 3. Fan-out
 
-One fresh agent per lens (times N), spawned according to `parallel=`.
+One fresh agent per lens (times N), spawned according to the confirmed concurrency.
 Each prompt contains: the pack path, the lens text from `lenses.md` or the
 profile, the matrix cells it owns, and the finding schema below. Reviewers
 read files as they need but must not run tests or modify anything.
@@ -250,7 +286,7 @@ For each chosen cluster, in triage order, the orchestrator creates one
 scenario, the relevant files, `tests.md`, the oracle command and a worktree
 on the PR branch, one per repository in set mode. Nothing else: no support count, no confidence, no
 reviewer evidence, no other cluster. The judge runs the court and returns a
-verdict with artifacts. Courts run one at a time unless `parallel=` says
+verdict with artifacts. Courts run one at a time unless the confirmed concurrency says
 otherwise; inside a court, everything is sequential.
 
 **Prosecution.** The judge summons a fresh prosecutor with the same inputs.

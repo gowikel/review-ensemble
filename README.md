@@ -142,21 +142,54 @@ skill name.
 
 ```
 /review-ensemble
-/review-ensemble 1234
-/review-ensemble 1234 lenses=concurrency,tests-as-spec N=2
-/review-ensemble https://github.com/org/api/pull/12 https://github.com/org/web/pull/40
 ```
+
+or just say you want a review ensemble. The skill asks for the PRs, then
+for anything extra worth knowing (ticket, related PRs, constraints,
+what was already reviewed), until you say that is all. It then prints a
+plan and waits:
+
+```
+PRs to review
+- https://github.com/org/api/pull/12  Add session token endpoint  merged
+- https://github.com/org/web/pull/40  Consume session token       merged
+
+Mode: set
+
+Available lenses
+- spec: each acceptance criterion: where implemented, where tested
+- concurrency: races, cancellation, cleanup, stale closures in async code
+- contract-drift: a field, route or key changed on one side of a repo boundary only
+- ...
+
+Enabled for this review: spec, control-and-error, ..., contract-drift, rollout-order
+(why: universal | triggered by src/sagas | profile | requested)
+
+Reviewers per lens (N): 1
+Concurrency (parallel): 1
+Tier: standard/strong
+
+Models
+- orchestrator, shallow reviewers, triage: sonnet
+- deep reviewers, judge, prosecutor, defender: opus
+
+Say "go", or tell me what to change.
+```
+
+Add or drop lenses by name, change N, concurrency or tier, add PRs or
+context. The plan is reprinted after each change. Nothing runs before
+"go". Flags on the command line (`lenses=`, `N=`, `parallel=`,
+`tier=high`) are accepted and only prefill the plan.
 
 ### Parameters
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| PR number | current branch's PR | Which pull request to review. |
-| PR URLs | none | Two or more: set mode, across repositories, merged or not. |
-| `lenses=` | automatic | Comma-separated lens names. Replaces the gate's selection entirely. |
-| `N=` | `1` | Reviewers per lens. Each is a fresh, independent agent. |
-| `parallel=` | `1` | Agents running at once. Sequential by default so token usage per minute stays flat. |
-| `tier=high` | off | Judge and deep reviewers use the strongest model available. Costly; off unless asked. |
+| PRs | asked | One number in the current repo, or URLs. Two or more URLs: set mode across repositories, merged or not. |
+| Lenses | universal plus triggered | Add or remove by name at the plan. |
+| N | `1` | Reviewers per lens. Each is a fresh, independent agent. |
+| Concurrency | `1` | Agents running at once. Sequential by default so token usage per minute stays flat. |
+| Tier | standard/strong | "tier high" moves the judge and deep reviewers to the strongest model. Costly. |
 
 `N=1` gives one sample per lens; agreement is then measured across lenses
 only. Raise it (`N=2`, `N=3`) on high-risk PRs: the same lens sampled
@@ -193,11 +226,9 @@ breaks between the first deploy and the last) and config propagation (a
 key set in one repository and never read in another). Claims carry the
 repository they belong to, and the court gets a worktree per repository.
 
-When the individual PRs were already reviewed, pass only the cross lenses:
-
-```
-/review-ensemble <url> <url> <url> lenses=contract-drift,rollout-order,config-propagation
-```
+When the individual PRs were already reviewed, keep only the cross lenses
+at the plan: contract-drift, rollout-order, config-propagation. That runs
+what nobody ran.
 
 
 ## License

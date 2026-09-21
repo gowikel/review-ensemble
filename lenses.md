@@ -4,6 +4,32 @@ A lens is a mutation operator: it must hunt a bug class the other lenses
 do not. Each reviewer gets exactly one lens text below, verbatim, plus its
 matrix cells.
 
+## Catalogue
+
+One line per lens, printed at the intake. Kind: U universal, always
+proposed; C conditional, proposed when its trigger matches; X cross, set
+mode only.
+
+| lens | kind | one line |
+|---|---|---|
+| spec | U | each acceptance criterion: where implemented, where tested |
+| control-and-error | U | branches, catches, retries and defaults that swallow or hide failure |
+| state-transitions | U | orderings the code assumes but nothing enforces |
+| callers-and-siblings | U | call sites broken by the change, and same bug left in sibling paths |
+| tests-as-spec | U | assertions that would still pass if the change were reverted |
+| diff-hygiene | U | debug leftovers, dead code, stale names, docs not updated |
+| prior-review | U | past review comments not addressed or regressed |
+| concurrency | C | races, cancellation, cleanup, stale closures in async code |
+| data-shape | C | optional fields, case boundaries, fixtures unlike production data |
+| ui-contract | C | render matrix, roles and labels, keyboard path, design fidelity |
+| http-boundary | C | routes without auth, unchecked input, CSRF, leaking responses |
+| config-and-deploy | C | keys missing in some environments, flag defaults, deploy order |
+| performance | C | new references per render, N+1, unmemoised work, unbounded lists |
+| security | C | trust boundaries crossed unchecked, secrets exposed, client-only checks |
+| contract-drift | X | a field, route or key changed on one side of a repo boundary only |
+| rollout-order | X | what breaks between the first deploy and the last |
+| config-propagation | X | a key set in one repository and never read in another, or the reverse |
+
 ## Universal (always on)
 
 ### spec
