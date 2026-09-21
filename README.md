@@ -124,8 +124,19 @@ skill name.
 /review-ensemble 1234 lenses=concurrency,tests-as-spec N=2
 ```
 
-No number: the PR is detected from the current branch. Explicit lenses
-replace the automatic selection. `N` is reviewers per lens, default 1.
+### Parameters
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| PR number | current branch's PR | Which pull request to review. |
+| `lenses=` | automatic | Comma-separated lens names. Replaces the gate's selection entirely. |
+| `N=` | `1` | Reviewers per lens. Each is a fresh, independent agent. |
+
+`N=1` gives one sample per lens; agreement is then measured across lenses
+only. Raise it (`N=2`, `N=3`) on high-risk PRs: the same lens sampled
+several times makes support counts meaningful within a lens too, and a
+claim found by three of three concurrency reviewers is a stronger signal
+than one found by one. Cost grows linearly with `N`.
 
 Expect ten to twenty agents on a typical PR. This is the heavy pass, not
 the everyday one.
