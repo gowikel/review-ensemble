@@ -154,6 +154,7 @@ skill name.
 | `lenses=` | automatic | Comma-separated lens names. Replaces the gate's selection entirely. |
 | `N=` | `1` | Reviewers per lens. Each is a fresh, independent agent. |
 | `parallel=` | `1` | Agents running at once. Sequential by default so token usage per minute stays flat. |
+| `tier=high` | off | Judge and deep reviewers use the strongest model available. Costly; off unless asked. |
 
 `N=1` gives one sample per lens; agreement is then measured across lenses
 only. Raise it (`N=2`, `N=3`) on high-risk PRs: the same lens sampled
@@ -163,10 +164,17 @@ than one found by one. Cost grows linearly with `N`.
 
 ### Models
 
-The orchestrator and the triage agent run on a mid-tier model: they build
-structure and tally, they do not judge code. Reviewers, prosecutor,
-defender and judge run on the strongest model available, because recall
-and reproduction are where sample quality matters.
+Roles name a tier, not a model, so the skill reads the same in any agent
+runtime. `standard` reads and tallies: the orchestrator, the shallow lenses
+(spec, diff hygiene, prior review) and triage. `strong` traces code, writes
+tests and weighs evidence: the deep lenses, prosecutor, defender and judge.
+`max` is the strongest model available and is used only with `tier=high`,
+for the judge and the deep lenses.
+
+One table in `SKILL.md` maps each tier to a model name per runtime. A
+runtime that cannot pick a model per subagent runs every role at the
+session's model and says so in the metrics. A repository profile can
+override a tier with a vendor name.
 
 Expect ten to twenty reviewer agents on a typical PR plus two to five per
 claim sent to court. This is the heavy pass, not

@@ -32,13 +32,35 @@ work. Break any of these and the sampling means nothing.
   support count then becomes meaningful within a lens too.
 - **parallel=** (optional): agents run at once, default 1. Sequential keeps
   token usage per unit of time flat; raise it only with budget to burn.
+- **tier=high** (optional): judge and deep reviewers move to the `max`
+  tier. Off by default; the strongest models are costly.
 
 ## Models
 
-The orchestrator does structure, not judgement: run it on a mid-tier model.
-Reviewers, prosecutor, defender and judge run on the strongest model
-available; recall and reproduction are where sample quality matters. The
-risk classifier runs mid-tier. Pass `model` on each Agent call accordingly.
+Roles name a tier, never a model. One table maps tiers to model names per
+runtime; resolve through the column of the runtime you are running in. If
+your runtime cannot set a model per subagent, run the role at the session's
+model and say so in the report's metrics.
+
+| tier       | meaning                                          | claude code | codex | vibe |
+|------------|--------------------------------------------------|-------------|-------|------|
+| `standard` | reads and tallies, light judgement               | sonnet      | TBD   | TBD  |
+| `strong`   | traces code, writes and runs tests, weighs evidence | opus     | TBD   | TBD  |
+| `max`      | strongest available; only with `tier=high`       | fable       | TBD   | TBD  |
+
+| role                                                        | tier       | with `tier=high` |
+|-------------------------------------------------------------|------------|------------------|
+| orchestrator (the session itself)                           | `standard` | `standard`       |
+| reviewers: spec, diff-hygiene, prior-review                 | `standard` | `standard`       |
+| reviewers: control-and-error, state-transitions, callers-and-siblings, tests-as-spec, every conditional lens | `strong` | `max` |
+| triage                                                      | `standard` | `standard`       |
+| judge                                                       | `strong`   | `max`            |
+| prosecutor                                                  | `strong`   | `strong`         |
+| defender                                                    | `strong`   | `strong`         |
+
+The `max` tier is never used unless the invocation says `tier=high`. A
+profile may override any tier with a vendor name under `models:`; the repo
+knows which runtime its team uses.
 
 ## Repo profile
 
@@ -51,6 +73,8 @@ oracle:
   test: "npm test -- --silent"          # command that counts as ground truth
   lint: "make lint"
 runs: .claude/review/runs               # per-run reports and metrics
+models:                                  # optional, vendor names, per tier
+  strong: opus
 context:                                 # extra sources for the context pack
   - kind: jira                           # jira | file | url | command
     key_from_branch: '^([A-Z]+-\d+)'     # regex on the branch name

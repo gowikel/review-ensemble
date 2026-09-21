@@ -4,6 +4,9 @@ oracle:
   test: "npm test"
   lint: "npm run lint"
 runs: .claude/review/runs
+# models:            # optional per-tier override with vendor names
+#   standard: sonnet
+#   strong: opus
 context:
   - kind: jira
     key_from_branch: '^([A-Z]+-\d+)'
