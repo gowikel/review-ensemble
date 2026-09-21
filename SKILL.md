@@ -33,9 +33,14 @@ the operator confirms the plan.
 1. **Ask for the PRs.** "Which PRs should I review?" Accept a number in
    the current repo, or one or more URLs. Two or more URLs is set mode.
 2. **Ask for anything extra.** Ticket links, related PRs, design docs,
-   known constraints, things already reviewed. Keep asking "anything
-   else?" until the operator says it is complete. Everything given goes
-   into the context pack.
+   known constraints, things already reviewed. Ask on purpose whether
+   the PR is part of a series and what is deliberately not in it. Keep
+   asking "anything else?" until the operator says it is complete.
+   Everything given goes into the context pack, except exclusions.
+   Anything the operator says to ignore, skip or treat as known becomes
+   an **exclusion**: one line each, kept in the plan, applied as a filter
+   at dedup. It is never passed to reviewers as advice; reviewers may
+   still find it, and the filter removes it.
 3. **Resolve defaults.** Read each repository's profile, match lens
    triggers against the diffs, set `N=1`, `parallel=1`, `tier` off.
 4. **Print the plan and ask for confirmation.** Exactly this shape:
@@ -64,6 +69,9 @@ the operator confirms the plan.
 
    Extra context
    - <what the operator gave>
+
+   Exclusions (filtered out before triage)
+   - <what the operator said to ignore>
 
    Say "go", or tell me what to change.
    ```
@@ -258,6 +266,10 @@ distinguishable from not looked.
 - Cluster near-duplicates. Merge scenarios, keep the strongest evidence.
 - `support` = number of distinct reviewers in the cluster.
 - Record every cluster to `clusters.json` with its member reviewer ids.
+- Apply the plan's exclusions: every cluster that matches one is moved
+  out of the run and listed in the report under "Excluded by operator"
+  with the exclusion it matched. No exclusion, no filtering; the
+  orchestrator does not decide on its own what is known.
 
 ### 5. Triage, then stop
 
@@ -291,6 +303,14 @@ on the PR branch, one per repository in set mode. Nothing else: no support count
 reviewer evidence, no other cluster. The judge runs the court and returns a
 verdict with artifacts. Courts run one at a time unless the confirmed concurrency says
 otherwise; inside a court, everything is sequential.
+
+Worktrees belong to the orchestrator. It creates them at the gate and
+removes them only after the report is written; no judge, prosecutor or
+defender ever removes a worktree or resets a branch. Every court artifact
+(test body, each run's output, trace, defence, exchange, ruling) is
+written to `court/<cluster id>.md` in the scratchpad the moment it
+exists, before the next step of the court starts. A court that dies
+mid-way leaves what it had.
 
 **Prosecution.** The judge summons a fresh prosecutor with the same inputs.
 The prosecutor must return the body and path of a test that fails because
@@ -357,14 +377,16 @@ scratchpad and print it; the set has no single home repository. Sections in this
 2. **Advisory.** Findings from advisory lenses, with the criterion or
    duplicate named and the sketched smaller change. Not tried in court.
 3. **Not verified.** The triage rows the operator did not choose.
-4. **Coverage.** The matrix: cells covered, cells with no owner output,
+4. **Excluded by operator.** Clusters removed by an exclusion, each with
+   the exclusion it matched.
+5. **Coverage.** The matrix: cells covered, cells with no owner output,
    reviewers that failed or timed out, lenses dropped at the gate.
-5. **Discarded.** One line per rejected cluster with the deciding step, so
+6. **Discarded.** One line per rejected cluster with the deciding step, so
    a human can spot-check the court.
-6. **Metrics.** Per lens: findings, unique after dedup, sent to court,
+7. **Metrics.** Per lens: findings, unique after dedup, sent to court,
    confirmed, rejected, plausible, tokens, wall time. Per court: agents
    spawned. Totals.
-7. **Profile suggestion.** Only when no profile existed.
+8. **Profile suggestion.** Only when no profile existed.
 
 ## Rules
 
@@ -375,4 +397,5 @@ scratchpad and print it; the set has no single home repository. Sections in this
   other; artifact or nothing.
 - Orchestrator: never judges content, only structure. If the pipeline
   cannot run a step, report the gap; do not fill it by reviewing yourself.
+  Owns the worktrees; nobody else touches them.
 - Never post to the PR. The report is local; the user decides what to post.

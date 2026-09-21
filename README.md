@@ -157,8 +157,10 @@ skill name.
 ```
 
 or just say you want a review ensemble. The skill asks for the PRs, then
-for anything extra worth knowing (ticket, related PRs, constraints,
-what was already reviewed), until you say that is all. It then prints a
+for anything extra worth knowing (ticket, related PRs, constraints, what
+is deliberately not in this PR, what was already reviewed), until you say
+that is all. Anything you say to ignore becomes an exclusion: a filter
+applied after dedup, listed in the report, never a hint to reviewers. It then prints a
 plan and waits:
 
 ```
@@ -184,6 +186,9 @@ Tier: standard/strong
 Models
 - orchestrator, shallow reviewers, triage: sonnet
 - deep reviewers, judge, prosecutor, defender: opus
+
+Exclusions (filtered out before triage)
+- rows are not wired into the presenter view yet; that is the next PR
 
 Say "go", or tell me what to change.
 ```
