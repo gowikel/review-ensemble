@@ -1,7 +1,7 @@
 ---
 name: review-ensemble
 description: >
-  Reviews a pull request with N independent fresh-context reviewers, each on a distinct lens, then dedups their claims, verifies each unique claim blind with a separate adversarial agent, and reports only what survives, with a coverage matrix and metrics. Use when a single AI review is not trusted to be complete, when a PR is high-risk, or when the user asks for an ensemble, multi-pass, or "thorough" review.
+  Reviews a pull request with independent fresh-context reviewers, each on a distinct lens, dedups their claims, ranks them by risk for the operator to choose from, then verifies each chosen claim in a judge-run court where a prosecutor must produce valid evidence and a defender must cite the guard. Use when a single AI review is not trusted to be complete, when a PR is high-risk, or when the user asks for an ensemble, multi-pass, or "thorough" review.
 metadata:
   origin: custom
 ---
@@ -9,12 +9,13 @@ metadata:
 # Review Ensemble
 
 One AI review is one sample from a distribution. This skill takes many
-samples with forced diversity, votes, verifies, and reports. The orchestrator
-never reviews code itself: it is one sample too, and its only job is
-structure.
+samples with forced diversity, votes, lets the operator choose what is
+worth verifying, verifies in court, and reports. The orchestrator never
+reviews code itself: it is one sample too, and its only job is structure.
 
-Two invariants. Reviewers never see each other. The verifier never sees how
-many reviewers found a claim. Break either and the voting means nothing.
+Invariants. Reviewers never see each other. Nobody in the court sees how
+many reviewers raised a claim. The defender never sees the prosecutor's
+work. Break any of these and the sampling means nothing.
 
 ## When To Activate
 
@@ -26,9 +27,18 @@ many reviewers found a claim. Break either and the voting means nothing.
 ## Inputs
 
 - **PR number** (optional): detect from the current branch if absent.
-- **Lenses** (optional): explicit list; explicit always wins over the profile.
-- **N** (optional): reviewers per lens, default 1. Raise for high-risk PRs;
+- **lenses=** (optional): explicit list; explicit always wins over the profile.
+- **N=** (optional): reviewers per lens, default 1. Raise for high-risk PRs;
   support count then becomes meaningful within a lens too.
+- **parallel=** (optional): agents run at once, default 1. Sequential keeps
+  token usage per unit of time flat; raise it only with budget to burn.
+
+## Models
+
+The orchestrator does structure, not judgement: run it on a mid-tier model.
+Reviewers, prosecutor, defender and judge run on the strongest model
+available; recall and reproduction are where sample quality matters. The
+risk classifier runs mid-tier. Pass `model` on each Agent call accordingly.
 
 ## Repo profile
 
@@ -63,6 +73,9 @@ write it into the repo without asking.
 
 Open with one short line saying you are using the review-ensemble skill.
 Work in the scratchpad; write into the repo only what the profile names.
+Spawn agents with the Agent tool as fresh general-purpose agents, never
+forks: a fork inherits this conversation and correlates the samples.
+Respect `parallel=` everywhere agents are spawned.
 
 ### 1. Gate
 
@@ -103,19 +116,17 @@ the same pack and nothing else is shared.
 
 ### 3. Fan-out
 
-One fresh agent per lens (times N). Use the Agent tool with a
-general-purpose agent, never a fork: a fork inherits this conversation and
-correlates the samples. Each prompt contains: the pack path, the lens text
-from `lenses.md` or the profile, the matrix cells it owns, and the finding
-schema below. Reviewers read files as they need but must not run tests or
-modify anything.
+One fresh agent per lens (times N), spawned according to `parallel=`.
+Each prompt contains: the pack path, the lens text from `lenses.md` or the
+profile, the matrix cells it owns, and the finding schema below. Reviewers
+read files as they need but must not run tests or modify anything.
 
 Finding schema, one JSON object per finding, in a `findings` array, plus a
 `covered` array of cell ids with `found: true|false` for each cell it owns:
 
 ```json
 {
-  "file": "app/redux/slices/videoroom/videoroomSagas.js",
+  "file": "src/state/sessionSagas.js",
   "lines": [120, 138],
   "claim": "one sentence, the defect only",
   "scenario": "concrete inputs and order of events that produce the wrong outcome",
@@ -131,85 +142,117 @@ distinguishable from not looked.
 
 ### 4. Normalise and dedup
 
-Before verification, so each unique claim is verified once.
-
 - Key on file plus overlapping line range plus claim similarity.
 - Cluster near-duplicates. Merge scenarios, keep the strongest evidence.
 - `support` = number of distinct reviewers in the cluster.
 - Record every cluster to `clusters.json` with its member reviewer ids.
 
-### 5. Verify, adversarial and blinded
+### 5. Triage, then stop
 
-Per cluster, in a worktree so nothing touches the working tree. Every
-verifier receives only: the claim, the scenario, the relevant files,
-`tests.md`, the oracle command. None receives the support count, the
-confidence, the reviewer's evidence, or any other cluster.
+One fresh mid-tier agent reads every cluster and assigns `risk_if_true`:
+high, medium or low, with one line of reasoning. It does not verify and
+it does not judge whether the claim is true; it rates the damage if it
+were.
 
-**Prosecutor.** Fresh agent. Must make the claim fail, in this order,
-stopping at the first that works:
+Print a numbered table sorted by risk, then support:
 
-1. A failing test written against the PR branch and run with the oracle
-   command. Attach the test body and the run output.
-2. A concrete input trace through the code, line by line, ending in the
-   wrong outcome.
+```
+#  risk    support  file:lines                        claim
+1  high    3        src/state/sessionSagas.js:120-138  ...
+2  high    1        ...
+```
 
-Cannot do either: reports "no reproduction" with what was tried.
+Stop and ask the operator which numbers proceed to court. Accept ranges
+(`1-8`), lists (`1,3,7`), `all`, or `none`. Claims not chosen go to the
+report's "not verified" section with their triage row, so the choice is
+visible later. Do not spend a single verification agent before the answer.
 
-A failing test is deterministic. Prosecutor succeeds with a test: verdict
-`confirmed`, no defender, done.
+### 6. Court, one claim at a time
 
-**Defender.** Fresh agent, blind to the prosecutor. Must prove the
-scenario cannot occur: cite the guard, invariant or ordering by file:line,
-and state which line of the scenario it breaks. Cannot: reports "no
-defence".
+For each chosen cluster, in triage order, the orchestrator creates one
+**judge** (fresh agent, strongest model) and hands it the claim, the
+scenario, the relevant files, `tests.md`, the oracle command and a worktree
+on the PR branch. Nothing else: no support count, no confidence, no
+reviewer evidence, no other cluster. The judge runs the court and returns a
+verdict with artifacts. Courts run one at a time unless `parallel=` says
+otherwise; inside a court, everything is sequential.
 
-Run prosecutor and defender in parallel unless the prosecutor's test
-decided it. Then:
+**Prosecution.** The judge summons a fresh prosecutor with the same inputs.
+The prosecutor must write a test that fails because of the claimed defect
+and run it with the oracle command, or, if no test can express it, a
+line-by-line trace of inputs and events ending in the wrong outcome.
 
-| prosecutor | defender | verdict |
-|---|---|---|
-| trace | no defence | `confirmed` |
-| no reproduction | defence | `rejected` |
-| trace | defence | judge |
-| no reproduction | no defence | `plausible` |
+**Test validation.** A red test is not evidence until the judge says so.
+Mechanical first: the judge runs the test on the PR branch (must fail) and
+on the base branch (must pass; failing on both means pre-existing or
+broken, not this PR). Then the checklist, each item answered yes or no:
 
-**Judge.** Fresh agent, only on conflict. Receives both artifacts and the
-files, nothing else. Must name the exact step where one side is wrong and
-rule `confirmed` or `rejected`; if it cannot, `plausible` with both
-artifacts attached. The judge never adds a new argument, it only ranks
-the two given.
+1. The assertion states the wrong outcome named in the claim, not
+   something adjacent.
+2. The failure is on that assertion, not on setup, imports or fixtures.
+3. The unit under test is real; mocks stand in only for collaborators.
+4. The inputs match the scenario; nothing was invented to force the
+   failure.
+5. The test would pass if the defect were fixed.
 
-Every verdict carries its artifacts into the report: the test, the trace,
-the defence, the ruling.
+Any no: the judge returns the test to the prosecutor once, naming the
+failed item. The prosecutor fixes or withdraws. A second failure of the
+checklist counts as no test. A trace goes through items 1, 4 and 5 the
+same way, once.
 
-### 6. Filter and rank
+Valid failing test: verdict `confirmed`, no defender, court closes.
 
-- Keep every `confirmed`.
-- Keep `plausible` only when `support >= 2` or severity is high.
-- Drop `rejected` and everything that is purely style, unless the user
-  asked for style.
+**Defence.** Otherwise the judge summons a fresh defender, blind to the
+prosecution, with the same inputs. The defender must cite the guard,
+invariant or ordering by file:line that makes the scenario impossible and
+name the scenario step it breaks. Cannot: "no defence".
+
+**Ruling.** The judge now holds the prosecutor's artifact (trace or
+nothing) and the defender's (guard or nothing) and decides:
+
+- Evidence clearly for the prosecution: `confirmed`.
+- Evidence clearly for the defence: `rejected`.
+- Not clear: one clarification round, at most one request per side. The
+  request names a specific step and demands a runnable check or a cited
+  line for it, never "elaborate". Then the judge decides between
+  `confirmed`, `rejected` and `plausible`. `plausible` is a legitimate
+  outcome, not a failure; the operator reads the two artifacts.
+
+The judge adds no argument of its own at any point; it validates, requests
+and ranks. Every verdict carries its artifacts: test body and both runs,
+trace, defence, clarification exchange, ruling with the deciding step
+named.
+
+### 7. Filter and rank
+
+- Keep every `confirmed` and `plausible`, marked as such.
+- Drop `rejected` from the findings; they appear in the discarded list.
 - Rank by severity, then verdict, then support.
 
-### 7. Report
+### 8. Report
 
 Write `report.md` to the profile's `runs` directory, named
 `<pr>-<yyyy-mm-dd>.md`, and print it. Sections in this order:
 
 1. **Findings.** Each with file:line, claim, scenario, verdict, the
-   verification artifact (test body or trace), support.
-2. **Coverage.** The matrix: cells covered, cells with no owner output,
+   artifacts, support.
+2. **Not verified.** The triage rows the operator did not choose.
+3. **Coverage.** The matrix: cells covered, cells with no owner output,
    reviewers that failed or timed out, lenses dropped at the gate.
-3. **Discarded.** One line per rejected or filtered cluster, so a human can
-   spot-check the filter.
-4. **Metrics.** Per lens: findings, unique after dedup, verify pass rate,
-   duplicates with other lenses, tokens, wall time. Totals.
-5. **Profile suggestion.** Only when no profile existed.
+4. **Discarded.** One line per rejected cluster with the deciding step, so
+   a human can spot-check the court.
+5. **Metrics.** Per lens: findings, unique after dedup, sent to court,
+   confirmed, rejected, plausible, tokens, wall time. Per court: agents
+   spawned. Totals.
+6. **Profile suggestion.** Only when no profile existed.
 
 ## Rules
 
 - Reviewers: fresh context, one lens, read-only, structured output only.
-- Prosecutor and defender: blind to support, confidence and each other;
-  artifact or nothing. Judge: ranks the two artifacts, adds none.
+- Triage: rates damage if true, never truth. The operator chooses.
+- Judge: owns the court, validates evidence, requests once, rules; adds
+  no argument. Prosecutor and defender: blind to support and to each
+  other; artifact or nothing.
 - Orchestrator: never judges content, only structure. If the pipeline
   cannot run a step, report the gap; do not fill it by reviewing yourself.
 - Never post to the PR. The report is local; the user decides what to post.
