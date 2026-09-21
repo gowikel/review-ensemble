@@ -14,7 +14,7 @@ mode only.
 |---|---|---|
 | spec | U | each acceptance criterion: where implemented, where tested |
 | control-and-error | U | branches, catches, retries and defaults that swallow or hide failure |
-| state-transitions | U | orderings the code assumes but nothing enforces |
+| state-transitions | U | what breaks when events arrive twice, out of order, too early or never |
 | callers-and-siblings | U | call sites broken by the change, and same bug left in sibling paths |
 | tests-as-spec | U | assertions that would still pass if the change were reverted |
 | diff-hygiene | U | debug leftovers, dead code, stale names, docs not updated |
